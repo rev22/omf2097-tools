@@ -1,0 +1,16 @@
+Source: omf2097-tools
+Priority: extra
+Maintainer: Michele Bini <michele.bini@gmail.com>
+Build-Depends: debhelper (>= 8.0.0), cmake, cdbs, libshadowdive-dev, libao-dev, libargtable2-dev
+Standards-Version: 3.9.4
+Section: games
+Homepage: https://github.com/omf2097/omf2097-tools
+Vcs-Git: https://github.com/omf2097/omf2097-tools.git
+Vcs-Browser: https://github.com/omf2097/omf2097-tools
+
+Package: omf2097-tools
+Section: misc
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Managing OMF2097 files
+ Command-line tools for managing One Must Fall 2097 files.

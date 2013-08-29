@@ -1,0 +1,5 @@
+omf2097-tools (0.1.0-1) unstable; urgency=low
+
+  * Debianized github sources.
+
+ -- Michele Bini <michele.bini@gmail.com>  Thu, 29 Aug 2013 02:53:32 +0200
