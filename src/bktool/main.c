@@ -4,7 +4,7 @@
   * @license MIT
   */
 
-#include <SDL2/SDL.h>
+#include <SDL/SDL.h>
 #include <argtable2.h>
 #include <shadowdive/shadowdive.h>
 #include <stdint.h>
@@ -33,77 +33,62 @@ int check_anim(sd_bk_file *bk, int anim) {
     return 1;
 }
 
+static int draw_pixel(SDL_Surface*s, Uint32 x, Uint32 y, Uint32 color) {
+  SDL_Rect r;
+  r.x = x; r.y = y; r.h = 0; r.w = 0;
+  return SDL_FillRect(s, &r, color);
+}
+
+static void*copy_img_data(sd_rgba_image*img) {
+  size_t s = img->w * img->h * 4;
+  void*d = malloc(s);
+  memcpy(d, (void*)(img->data), s);
+  return d;
+}
+
 // Sprites -------------------------------------------------------
 
 void sprite_play(sd_bk_file *bk, int scale, int anim, int sprite) {
     if(!check_anim_sprite(bk, anim, sprite)) return;
-    SDL_Surface *surface;
-    SDL_Texture *texture;
-    SDL_Texture *background;
-    SDL_Texture *rendertarget;
+    SDL_Surface *texture;
+    SDL_Surface *background;
     SDL_Rect rect;
-    SDL_Rect dstrect;
+    // SDL_Rect dstrect;
     sd_sprite *s = bk->anims[anim]->animation->sprites[sprite];
-    SDL_Window *window = SDL_CreateWindow(
-            "OMF2097 Remake",
-            SDL_WINDOWPOS_CENTERED,
-            SDL_WINDOWPOS_CENTERED,
-            320 * scale,
-            200 * scale,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL
-            );
+    SDL_Surface *screen = SDL_SetVideoMode(320, 200, 24, SDL_SWSURFACE);
 
-    if (!window) {
+    if (!screen) {
         printf("Could not create window: %s\n", SDL_GetError());
         return;
     }
     
     printf("Sprite Info: pos=(%d,%d) size=(%d,%d) len=%d\n", s->pos_x, s->pos_y, s->img->w, s->img->h, s->img->len);
     
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    
     uint32_t rmask, gmask, bmask, amask;
 
-    rmask = 0x000000ff;
-    gmask = 0x0000ff00;
-    bmask = 0x00ff0000;
-    amask = 0xff000000;
+    rmask = screen->format->Rmask;
+    gmask = screen->format->Gmask;
+    bmask = screen->format->Bmask;
+    amask = screen->format->Amask;
 
     sd_rgba_image *img = sd_vga_image_decode(bk->background, bk->palettes[0], -1);
 
-    if(!(surface = SDL_CreateRGBSurfaceFrom((void*)img->data, img->w, img->h, 32, img->w*4,
+    if(!(background = SDL_CreateRGBSurfaceFrom(copy_img_data(img), img->w, img->h, 32, img->w*4,
             rmask, gmask, bmask, amask))) {
         printf("Could not create surface: %s\n", SDL_GetError());
         return;
     }
 
-    if ((background = SDL_CreateTextureFromSurface(renderer, surface)) == 0) {
-        printf("Could not create texture: %s\n", SDL_GetError());
-        return;
-    }
-    
-    if((rendertarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 320, 200)) == 0) {
-        printf("Could not create texture: %s\n", SDL_GetError());
-        return;
-    }
-
-    SDL_FreeSurface(surface);
     sd_rgba_image_delete(img);
 
     img = sd_sprite_image_decode(s->img, bk->palettes[0], -1);
 
-    if(!(surface = SDL_CreateRGBSurfaceFrom((void*)img->data, img->w, img->h, 32, img->w*4,
+    if(!(texture = SDL_CreateRGBSurfaceFrom(copy_img_data(img), img->w, img->h, 32, img->w*4,
             rmask, gmask, bmask, amask))) {
         printf("Could not create surface: %s\n", SDL_GetError());
         return;
     }
 
-    if ((texture = SDL_CreateTextureFromSurface(renderer, surface)) == 0) {
-        printf("Could not create texture: %s\n", SDL_GetError());
-        return;
-    }
-
-    SDL_FreeSurface(surface);
     sd_rgba_image_delete(img);
 
     rect.x = s->pos_x;
@@ -111,10 +96,10 @@ void sprite_play(sd_bk_file *bk, int scale, int anim, int sprite) {
     rect.w = s->img->w;
     rect.h = s->img->h;
     
-    dstrect.x = 0;
-    dstrect.y = 0;
-    dstrect.w = 320 * scale;
-    dstrect.h = 200 * scale;
+    // dstrect.x = 0;
+    // dstrect.y = 0;
+    // dstrect.w = 320 * scale;
+    // dstrect.h = 200 * scale;
 
     while(1) {
         SDL_Event e;
@@ -181,18 +166,12 @@ void sprite_play(sd_bk_file *bk, int scale, int anim, int sprite) {
                     int y = s->pos_y + bk->anims[anim]->animation->start_y;
                     printf("Sprite Info: pos=(%d,%d) size=(%d,%d) len=%d\n", x, y, s->img->w, s->img->h, s->img->len);
 
-                    if(!(surface = SDL_CreateRGBSurfaceFrom((void*)img->data, img->w, img->h, 32, img->w*4,
+                    SDL_FreeSurface(texture);
+                    if(!(texture = SDL_CreateRGBSurfaceFrom((void*)img->data, img->w, img->h, 32, img->w*4,
                                     rmask, gmask, bmask, amask))) {
                         printf("Could not create surface: %s\n", SDL_GetError());
                         return;
                     }
-
-                    if ((texture = SDL_CreateTextureFromSurface(renderer, surface)) == 0) {
-                        printf("Could not create texture: %s\n", SDL_GetError());
-                        return;
-                    }
-
-                    SDL_FreeSurface(surface);
 
                     rect.x = x;
                     rect.y = y;
@@ -201,30 +180,26 @@ void sprite_play(sd_bk_file *bk, int scale, int anim, int sprite) {
                 }
             }
         }
-        SDL_RenderClear(renderer);
-        SDL_SetRenderTarget(renderer, rendertarget);
-        SDL_RenderCopy(renderer, background, NULL, NULL);
-        SDL_RenderCopy(renderer, texture, NULL, &rect);
+        //SDL_RenderClear(renderer);
+        //SDL_SetRenderTarget(renderer, rendertarget);
+        SDL_BlitSurface(background, NULL, screen, NULL);
+        SDL_BlitSurface(texture, &rect, screen, NULL);
 
         // render the collision data
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+	Uint32 color = SDL_MapRGB(screen->format, 0, 0xff, 0);
         for(int i = 0; i < bk->anims[anim]->animation->col_coord_count; i++) {
             int x = bk->anims[anim]->animation->col_coord_table[i].x;
             int y = bk->anims[anim]->animation->col_coord_table[i].y;
             int y_ext = bk->anims[anim]->animation->col_coord_table[i].y_ext;
             if (y_ext == sprite) {
-                SDL_RenderDrawPoint(renderer, x, y);
+	      draw_pixel(screen, x, y, color);
             }
         }
 
-        SDL_SetRenderTarget(renderer, NULL);
-        SDL_RenderCopy(renderer, rendertarget, NULL, &dstrect);
-        SDL_RenderPresent(renderer);
-        SDL_Delay(10); // don't chew too much CPU
+	SDL_Flip(screen);
+        SDL_Delay(20); // don't chew too much CPU
     }
-
-    // Close and destroy the window
-    SDL_DestroyWindow(window);
 
     // Clean up
     SDL_Quit();
